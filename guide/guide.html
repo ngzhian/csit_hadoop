@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<title>Guide to setting up HBase on Hadoop</title>
+<link rel="stylesheet" type="text/css" href="main.css">
+<style>
+
+</style>
+</head>
+<body>
+<nav>
+<h1><a href="">Guide to setting up HBase on Hadoop</a></h1>
+<ol>
+
+<li>
+<a href="#hadooptop">Setting up Hadoop</a>
+<ol class="">
+<li><a href="#hadoop1">Java</a></li>
+<li><a href="#hadoop2">Dedicated Hadoop user</a></li>
+<li><a href="#hadoop3">Download and Install Hadoop</a></li>
+<li><a href="#hadoop4">System Setup</a></li>
+<li><a href="#hadoop5">SSH</a></li>
+<li><a href="#hadoop6">Configuration</a></li>
+<li><a href="#hadoop7">First-run</a></li>
+</ol>
+</li>
+
+<li>
+<a href="#zookeepertop">Setting up ZooKeeper</a>
+<ol>
+<li><a href="#zookeeper1">Download and Install ZooKeeper</a></li>
+<li><a href="#zookeeper2">System Setup</a></li>
+<li><a href="#zookeeper3">Configuration</a></li>
+<li><a href="#zookeeper4">First-run</a></li>
+</ol>
+</li>
+
+<li>
+<a href="#hbasetop">Setting up HBase</a>
+<ol>
+<li><a href="#hbase1">Download and Install HBase</a></li>
+<li><a href="#hbase2">System Setup</a></li>
+<li><a href="#hbase3">Configuration</a></li>
+<li><a href="#hbase4">First-run</a></li>
+</ol>
+</li>
+
+<li>
+<a href="#mrhbasetop">MapReduce on HBase</a>
+<ol>
+<li><a href="#mrhbase1">Configuration</a></li>
+<li><a href="#mrhbase2">First-run</a></li>
+</ol>
+</li>
+
+<li>
+<a href="#reftop">Reference</a>
+<ol>
+<li><a href="#ref1">Hadoop</a></li>
+<li><a href="#ref2">Zookeeper</a></li>
+<li><a href="#ref3">HBase</a></li>
+</ol>
+</li>
+
+</ol>
+
+</nav>
+
+<section id="content">
+
+<article id="hadoop">
+<h2 id="hadooptop">Setting up a fully-distributed Hadoop</h2>
+<section id="hadoop1">
+<h3>1. Java</h3>
+<span class="inner_anchor">Jump to: <a href="#hadoop2">2</a> <a href="#hadoop3">3</a> <a href="#hadoop4">4</a> <a href="#hadoop5">5</a> <a href="#hadoop6">6</a> <a href="#hadoop7">7</a></span>
+<p>Download and install <strong>Java 6 OpenJDK</strong> if you do not have it yet:</p>
+<pre>$ sudo apt-get java-6-openjdk</pre>
+<p>It will be installed under either
+<code>/usr/lib/jvm/java-6-openjdk</code> or <code>/usr/java</code>.</p>
+<p class="caution">This step has to be repeated on all servers</p>
+</section>
+<section id="hadoop2">
+<h3>2. Dedicated Hadoop user</h3>
+<span class="inner_anchor">Jump to: <a href="#hadoop1">1</a> <a href="#hadoop3">3</a> <a href="#hadoop4">4</a> <a href="#hadoop5">5</a> <a href="#hadoop6">6</a> <a href="#hadoop7">7</a></span>
+<p>Create a new user specially for using/testing Hadoop</p>
+<pre>$ sudo addgroup hadoop // creates the user-group hadoop
+$ sudo adduser --ingroup hadoop hduser // adds hduser to the group hadoop</pre>
+
+<p>The following step might not be needed, try doing without it. But if permissions error ensues, then use this solution, this will add sudo permissions to hduser:</p>
+<pre>$ sudo visudo
+// under user privilege specification add in
+hduser ALL=(ALL) ALL</pre>
+<p class="tips">More info on <a href="http://linux.die.net/man/8/adduser"><code>adduser</code> and <code>addgroup</code></a>, <a href="http://www.linuxhowtos.org/manpages/8/visudo.htm"><code>visudo</code></a> and <a href="https://help.ubuntu.com/community/Sudoers">how to edit</a> the sudoers file in visudo.</p>
+<p class="caution">This step has to be repeated on all servers</p>
+</section>
+<section id="hadoop3">
+<h3>3. Download and Install Hadoop</h3>
+<span class="inner_anchor">Jump to: <a href="#hadoop1">1</a> <a href="#hadoop2">2</a> <a href="#hadoop4">4</a> <a href="#hadoop5">5</a> <a href="#hadoop6">6</a> <a href="#hadoop7">7</a></span>
+<p>Download from <a href="http://www.apache.org/dyn/closer.cgi/hadoop/common/">Apache mirror</a> and extract contents to a location, in this example we'll use <code>/home/hduser/hadoop</code> and change owner of all hadoop files to hduser. Assuming your downloaded Hadoop archive file is in the folder <code>/home/hduser/Downloads</code></p>
+<pre># change to your Downloads directory
+$ cd /home/hduser/Downloads
+
+# extract the files
+$ tar xzf hadoop-[versionnumber].tar.gz
+
+# move the folder to the appropriate directory
+$ mv hadoop-[versionnumber] /home/hduser/hadoop
+
+# change owner of files
+$ cd /home/hduser
+$ sudo chown -R hduser:hadoop hadoop </pre>
+<p class="tips">More info on <a href="http://linux.die.net/man/1/chown"><code>chown</code></a></p>
+<p class="caution">This step has to be repeated on all servers</p>
+<p class="tips">An alternative to proceeding with the following steps on each and every server is to complete the steps on a single server, then copy the hadoop folder to the other servers via <a href="http://linux.die.net/man/1/rcp"><code>rcp</code></a> or <a href="http://linux.die.net/man/1/rsync"><code>rsync</code></a></p>
+</section>
+<section id="hadoop4">
+<h3>4. System Setup</h3>
+<span class="inner_anchor">Jump to: <a href="#hadoop1">1</a> <a href="#hadoop2">2</a> <a href="#hadoop3">3</a> <a href="#hadoop5">5</a> <a href="#hadoop6">6</a> <a href="#hadoop7">7</a></span>
+<p>Configure <code>$HOME/.bashrc</code></p>
+<pre>$ nano $HOME/.bashrc</pre>
+<p class="tips"><a href="https://help.ubuntu.com/community/Nano">Nano</a> is a simple CLI editor. You can use any text editor you like, e.g. vi, vim, emacs, gedit, by replacing nano with the appropriate program name.</p>
+<p>add the following lines to the end of the file</p>
+<pre>export JAVA_HOME=/usr/lib/jvm/java-6-openjdk
+export HADOOP_HOME=/home/hduser/hadoop
+export PATH=$PATH:$HADOOP_HOME/bin
+</pre>
+<p class="tips">Change your JAVA_HOME value to the proper directory where your Java is in.</p>
+<p>Configure <code>/etc/hosts</code>.</p>
+<pre>$sudo nano /etc/hosts</pre>
+<p class="tips">More info on <a href="http://www.joshstaiger.org/archives/2005/07/bash_profile_vs.html"><code>.bashrc</code></a> and <a href="http://ss64.com/bash/export.html"><code>export</code></a></p>
+<p>In our case, we have three servers, <code>master</code>, <code>slave1</code> and <code>slave2</code>. Our /etc/hosts file will then look like this:</p>
+<pre>127.0.0.1	localhost
+10.2.41.78	master	nadal
+10.2.41.101	slave1	UbuntuHadoop01
+10.2.41.85	slave2	UbuntuHadoop02
+</pre>
+<p class="tips"></a><a href="http://www.faqs.org/docs/securing/chap9sec95.html">More</a> info on <a href="https://en.wikipedia.org/wiki/Hosts_(file)">/etc/hosts</a></p>
+<p class="caution">There will probably be a few more lines in the file, but comment them out. Pay special attention to comment lines that looks like this:</p>
+<pre>#127.0.0.1	nadal
+#127.0.1.1	localhost</pre>
+<p>Note the 127.0.0.1 references to your machine name, nadal in my case, and the different locahost ip, 127.0.1.1 (with two 1s). I have found that the above lines cause problems when trying to run HBase, so comment it out.</p>
+<p class="caution">This step has to be repeated on all servers</p>
+
+</section>
+<section id="hadoop5">
+<h3>5. SSH</h3>
+<span class="inner_anchor">Jump to: <a href="#hadoop1">1</a> <a href="#hadoop2">2</a> <a href="#hadoop3">3</a> <a href="#hadoop4">4</a> <a href="#hadoop6">6</a> <a href="#hadoop7">7</a></span>
+<p>Configure ssh access to localhost for hduser on master</p>
+<pre>// change current user to hduser
+$ su hduser
+// generate a SSH key for hduser, creates an rsa key pair with an empty password
+$ ssh-keygen -t rsa -P ""
+// enable ssh access to local machine with this new key
+$ cat $HOME/.ssh/id_rsa.pub >> $HOME/.ssh/authorized_keys
+// test ssh setup
+$ ssh localhost
+$ ssh master
+// if there are any problems, debug with
+$ ssh -vvv localhost</pre>
+<p><code>hduser</code> on the <code>master</code> must be able to connect to itself (<code>ssh master</code>) and also to <code>hduser</code> on the slaves via a password-less ssh login</p>
+<p>Add the huser@master public ssh key to autorized_keys of hduser@slave in the hduser@slave's <code>$HOME/.ssh/authorized_keys</code></p>
+<pre>$ ssh-copy-id -i $HOME/.ssh/id_rsa.pub hduser@slave1
+$ ssh-copy-id -i $HOME/.ssh/id_rsa.pub hduser@slave2
+</pre>
+<p class="tips">More info on <a href="http://linux.die.net/man/1/ssh">ssh</a> and <a href="http://www.debian-administration.org/articles/152">passwordless SSH logins</a></p>
+<p class="caution">This step has to be repeated on all servers</p>
+</section>
+<section id="hadoop6">
+<h3>6. Configuration</h3>
+<span class="inner_anchor">Jump to: <a href="#hadoop1">1</a> <a href="#hadoop2">2</a> <a href="#hadoop3">3</a> <a href="#hadoop4">4</a> <a href="#hadoop5">5</a> <a href="#hadoop7">7</a></span>
+<p>
+<code>conf/masters</code> (on master machine only) defines on which machines Hadoop will start secondary NameNodes in our multi-node cluster</p>
+<p>The primary NameNode and the JobTracker will always be the machines on which you run the <code>bin/start-dfs.sh</code> and <code>bin/start-mapred.sh</code> scripts,</p>
+<p>On master machine, update <code>conf/masters</code>, add the following line</p>
+<pre>master</pre>
+<p>The conf/slaves file lists the hosts, one per line, where the Hadoop slave daemons (DataNodes and TaskTrackers) will be run. On <code>master</code>, update <code>conf/slaves</code> so that it looks like this:</p>
+<pre>slave1
+slave2</pre>
+<p class="tips">This will run the Secondary NameNode on <code>master</code>, and DataNodes and TaskTrackers on <code>slave1</code> and <code>slave2</code>.</p>
+<p>You have to change the configuration files <code>conf/core-site.xml</code>, <code>conf/mapred-site.xml</code> and <code>conf/hdfs-site.xml</code> on ALL machines as follows.</p>
+
+<pre>&lt;!-- In: conf/core-site.xml --&gt;
+&lt;configuration&gt;
+  &lt;property&gt;
+    &lt;name&gt;fs.default.name&lt;/name&gt;
+    &lt;value&gt;hdfs://master:54310&lt;/value&gt;
+    &lt;description&gt;The name of the default file system. &nbsp;A URI whose scheme and authority determine the FileSystem implementation. &nbsp;The uri's scheme determines the config property (fs.SCHEME.impl) naming the FileSystem implementation class. &nbsp;The uri's authority is used to determine the host, port, etc. for a filesystem.
+    &lt;/description&gt;
+  &lt;/property&gt;
+&lt;/configuration&gt;</pre>
+
+<pre>&lt;!-- In: conf/mapred-site.xml --&gt;
+&lt;configuration&gt;
+  &lt;property&gt;
+    &lt;name&gt;mapred.job.tracker&lt;/name&gt;
+    &lt;value&gt;master:54311&lt;/value&gt;
+    &lt;description&gt;The host and port that the MapReduce job tracker runs at. &nbsp;If &quot;local&quot, then jobs are run in-process as a single map and reduce task.
+    &lt;/description&gt;
+  &lt;/property&gt;
+&lt;/configuration&gt;</pre>
+
+<pre>&lt;!-- In: conf/hdfs-site.xml --&gt;
+&lt;configuration&gt;
+  &lt;property&gt;
+    &lt;name&gt;dfs.replication&lt;/name&gt;
+    &lt;value&gt;2&lt;/value&gt;
+    &lt;description&gt;Default block replication. The actual number of replications can be specified when the file is created. The default is used if replication is not specified in create time.
+    &lt;/description&gt;
+  &lt;/property&gt;
+  &lt;property&gt;
+    &lt;name&gt;dfs.name.dir&lt;/name&gt;
+    &lt;value&gt;/home/hduser/hadoop/tmp/dfs/name&lt;/value&gt;
+    &lt;description&gt; Determines where on the local filesystem the DFS name node should store the name table(fsimage). If this is a comma-delimited list of directories then the name table is replicated in all of the directories, for redundancy.
+    &lt;/description&gt;
+  &lt;/property&gt;
+  &lt;property&gt;
+    &lt;name&gt;dfs.data.dir&lt;/name&gt;
+    &lt;value&gt;/home/hduser/hadoop/tmp/dfs/data&lt;/value&gt;
+    &lt;description&gt; Determines where on the local filesystem an DFS data node should store its blocks. If this is a comma-delimited list of directories, then data will be stored in all named directories, typically on different devices. Directories that do not exist are ignored.
+    &lt;/description&gt;
+  &lt;/property&gt;
+&lt;/configuration&gt;</pre>
+<p>More info on the configuration parameters: <a href="http://hadoop.apache.org/common/docs/current/cluster_setup.html#Configurationml">important parameters</a>, and all parameters in the file <a href="http://hadoop.apache.org/common/docs/current/core-default.html">core-site.xml</a>, <a href="http://hadoop.apache.org/common/docs/current/hdfs-default.html">hdfs-site.xml</a>, <a href="http://hadoop.apache.org/common/docs/current/mapred-default.html">mapred-site.xml</a></p>
+<p class="tips">You can use <a href="http://www.linuxmanpages.com/man1/rcp.1.php"><code>rcp</code></a> or <a href="http://www.linuxmanpages.com/man1/rsync.1.php"><code>rsync</code></a> to copy your configuration files from one server to another.</p>
+<p class="caution">The information in the links might be outdated due to frequent updates on Hadoop</p>
+<p class="caution">This step has to be repeated on all servers</p>
+</section>
+<section id="hadoop7">
+<h3>7. First-run</h3>
+<span class="inner_anchor">Jump to: <a href="#hadoop1">1</a> <a href="#hadoop2">2</a> <a href="#hadoop3">3</a> <a href="#hadoop4">4</a> <a href="#hadoop5">5</a> <a href="#hadoop6">6</a></span>
+<p>Format namenode on NameNode (master)</p>
+<pre>$ bin/hadoop namenode -format</pre>
+<p class="tips">You might be able to omit the <code>bin/</code> because you have added the <code>$HADOOP_HOME/bin</code> to your <code>.bashrc</code> path, so <code>bash</code> will automatically be able to locate the <code>hadoop</code> script, and be able to execute the <code>namenode</code> command properly.So for the above input, and all other inputs into the script below, you can omit the <code>bin/</code> prefixes, as such:</p>
+
+<pre>$ hadoop namenode -format</pre>
+
+<p>Start the multi-node cluster by running <code>bin/start-dfs.sh</code> on the machine that you want NameNode to run on, this will bring up HDFS with NameNode on the machine this script is ran and DataNodes on the machines listed in <code>conf/slaves</code></p>
+<pre>$ bin/start-dfs.sh</pre>
+
+<p>Examine the success/failure of this command in the <code>logs</code> folder.</p>
+<p class="tips">Examine the logs folder on <code>master</code> to troubleshoot the starting of NameNode and SecondaryNameNode. Examing the logs on each slave to debug the its respective DataNode.</p>
+<p>Use <code>jps</code> to look at the Java processes running, it should be something like this:</p>
+<pre>hduser@master:/home/hduser/hadoop$ jps
+14799 NameNode
+15314 Jps
+14880 DataNode
+14977 SecondaryNameNode
+
+hduser@slave1:/home/hduser/hadoop$ jps
+15183 DataNode
+15616 Jps
+
+hduser@slave2:/home/hduser/hadoop$ jps
+15225 DataNode
+15985 Jps
+</pre>
+
+<p>Run the command <code>/bin/start-mapred.sh</code> on the machine you want the JobTracker to run on
+This will bring up the MapReduce cluster with the JobTracker running on the machine you ran the previous command on, and TaskTrackers on the machines listed in the conf/slaves file.</p>
+<p class="tips">Examine the logs folder on <code>master</code> to troubleshoot the starting of JobTracker. Examing the logs on each slave to debug the its respective TaskTracker.</p>
+<p>Use <code>jps</code> to look at the Java processes running, it should be something like this:</p>
+<pre>$ bin/start-mapred.sh
+
+hduser@master:/home/hduser/hadoop$ jps
+16017 Jps
+14799 NameNode
+15686 TaskTracker
+14880 DataNode
+15596 JobTracker
+14977 SecondaryNameNode
+
+hduser@slave1:/home/hduser/hadoop$ jps
+15183 DataNode
+15897 TaskTracker
+16284 Jps
+
+hduser@slave2:/home/hduser/hadoop$ jps
+15225 DataNode
+15985 Jps
+15897 TaskTracker
+</pre>
+
+
+<p>Hadoop has web interfaces at the following URL to check/track the various processes:
+<pre>http://master:50030/ &dash; web UI for MapReduce job tracker(s)
+http://master:50060/ &dash; web UI for task tracker(s)
+http://master:50070/ &dash; web UI for HDFS name node(s)</pre>
+</p>
+<p>Run a sample MapReduce test to test that your cluster is up.</p>
+<pre>
+$ cd ~/hadoop
+
+# Copy the input files into the distributed filesystem
+# (there will be no output visible from the command):
+$ bin/hadoop fs -put conf input
+
+# Run some of the examples provided:
+# (there will be a large amount of INFO statements as output)
+# grep will search files in input folder for strings
+# that matches the expression 'dfs[a-z.]+',
+# and output the results to output folder
+$ bin/hadoop jar hadoop-*-examples.jar grep input output 'dfs[a-z.]+'
+
+# Examine the output files:
+$ bin/hadoop fs -cat output/part-00000
+</pre> 
+<p>Stop the cluster using the command</p>
+<pre>
+$ bin/stop-all.sh
+</pre>
+</section>
+<p class="inner_anchor"><a href="#hadooptop">Top</a></p>
+</article>
+
+<article id="zookeeper">
+<h2 id="zookeepertop">Setting up a replicated ZooKeeper</h2>
+<section id="zookeeper1">
+<h3>1. Download and Install ZooKeeper</h3>
+<span class="inner_anchor">Jump to: <a href="#zookeeper2">2</a> <a href="#zookeeper3">3</a> <a href="#zookeeper4">4</a></span>
+<p>Download from <a href="http://www.apache.org/dyn/closer.cgi/zookeeper/">Apache mirror</a> and extract contents to a location, in this example we'll use <code>/home/hduser/zookeeper</code> and change owner of all zookeeper files to hduser:</p>
+<pre># change to your Downloads directory
+$ cd /home/hduser/Downloads
+
+# extract the files
+$ tar xzf zookeeper-[versionnumber].tar.gz
+
+# move the folder to the appropriate directory
+$ mv zookeeper-[versionnumber] /home/hduser/zookeeper
+
+# change owner of files
+$ cd /home/hduser
+$ sudo chown -R hduser:hadoop zookeeper </pre>
+<p class="tips">More info on <a href="http://linux.die.net/man/1/chown"><code>chown</code></a></p>
+<p class="caution">This step has to be repeated on all servers</p>
+<p class="tips">An alternative to proceeding with the following steps on each and every server is to complete the steps on a single server, then copy the zookeeper folder to the other servers via <a href="http://linux.die.net/man/1/rcp"><code>rcp</code></a> or <a href="http://linux.die.net/man/1/rsync"><code>rsync</code></a></p>
+</section>
+<section id="zookeeper2">
+
+<h3>2. System Setup</h3>
+<span class="inner_anchor">Jump to: <a href="#zookeeper1">1</a> <a href="#zookeeper3">3</a> <a href="#zookeeper4">4</a></span>
+<p>Configure <code>$HOME/.bashrc</code></p>
+<pre>$ nano $HOME/.bashrc</pre>
+<p class="tips"><a href="https://help.ubuntu.com/community/Nano">Nano</a> is a simple CLI editor. You can use any text editor you like, e.g. vi, vim, emacs, gedit, by replacing nano with the appropriate program name.</p>
+<p>Append the following lines, or update if similar exists to the end of the file</p>
+<pre>export ZK_HOME=/home/hduser/zookeeper
+export PATH=$PATH:$HADOOP_HOME/bin:$ZK_HOME/bin
+</pre>
+<p>If you followed the previous section on Setting up Hadoop, your file will look like this</p>
+<pre>export JAVA_HOME=/usr/lib/jvm/java-6-openjdk
+export HADOOP_HOME=/home/hduser/hadoop
+export ZK_HOME=/home/hduser/zookeeper
+export PATH=$PATH:$HADOOP_HOME/bin:$ZK_HOME/bin
+</pre>
+<p class="tips">More info on <a href="http://www.joshstaiger.org/archives/2005/07/bash_profile_vs.html"><code>.bashrc</code></a> and <a href="http://ss64.com/bash/export.html"><code>export</code></a></p>
+
+<p class="caution">This step has to be repeated on all servers</p>
+
+
+
+</section>
+<section id="zookeeper3">
+<h3>3. Configuration</h3>
+<span class="inner_anchor">Jump to: <a href="#zookeeper1">1</a> <a href="#zookeeper2">2</a> <a href="#zookeeper4">4</a></span>
+
+<p>For configuring the zookeeper goto <code>conf</code> folder in where you installed zookeeper, we used <code>/home/hduser/zookeeper</code>, you may or may not find <code>zoo.cfg</code>. If you find it, make sure the contents match below, if not do a file copy:</p>
+<pre>cp zoo_sample.cfg zoo.cfg</pre>
+<p class="tips">More info on <a href="http://linux.die.net/man/1/cp"><code>cp</code></a></p>
+<p>If no <code>zoo_sample.cfg</code> exists, just make a new file named <code>zoo.cfg</code> with the following contents:</p>
+<pre>
+# The number of milliseconds of each tick
+tickTime=2000
+
+# The directory where the snapshot is stored
+dataDir=/home/hduser/zookeeper/dataDir
+
+# The port at which clients will connect
+clientPort=2181
+
+# The number of ticks that the initial
+# synchronization phase can take
+initLimit=5
+
+# The number of ticks that can pass
+# between sending a request and
+# getting an acknowledgement
+syncLimit=2
+
+server.3=master:2888:3888
+server.1=slave1:2888:3888
+server.2=slave2:2888:3888
+</pre>
+<p class="tips">More info on the attributes in the file <a href="http://zookeeper.apache.org/doc/r3.4.3/zookeeperStarted.html#sc_RunningReplicatedZooKeeper">here</a> and <a href="http://zookeeper.apache.org/doc/trunk/zookeeperAdmin.html#sc_configuration">here</a>.</p>
+<p>The most important thing is the lines in the form of <code>server.N</code>. The entries list the servers that make up the ZooKeeper service. When the server starts up, it knows which server it is by looking for the file <code>myid</code> in the data directory, which as specified is <code>/home/hduser/zookeeper/dataDir</code></p>
+<p>The <code>myid</code> file in <code>/home/hduser/zookeeper/dataDir</code> has a single line containing that machine's id. This id is unique within the ensemble and should have a value of between 1 and 255</p>
+<p>As such, the <code>myid</code> file of master will be:</p>
+<pre>3</pre>
+<p>The <code>myid</code> file of slave1 will be:</p>
+<pre>1</pre>
+<p>The <code>myid</code> file of slave2 will be:</p>
+<pre>2</pre>
+<p class="tips">The server with the highest <code>myid</code> will be elected the leader</p>
+</section>
+<section id="zookeeper4">
+<h3>4. First-run</h3>
+<span class="inner_anchor">Jump to: <a href="#zookeeper1">1</a> <a href="#zookeeper2">2</a> <a href="#zookeeper3">3</a></span>
+<p>Execute this command on all machines:</p>
+<pre>$ zkServer.sh start</pre>
+
+<p>or for a more verbose version:</p>
+<pre>$ zkServer.sh start-foreground</pre>
+
+<p>Check the status of the machines with</p>
+<pre>$ zkServer.sh status
+# you'll get either of the two reponses below
+Mode: follower
+Mode: leader
+# depending on the machines myid
+</pre>
+<p class="tips">It doesn't really matter which machine is the leader or the follower, the NameNode does not have to be the leader. The important thing is that ZooKeeper is running in all the machines that you have stated.</p>
+<p>If you followed the Setting up Hadoop section before this, running <code>jps</code> will show you the following output:</p>
+<pre>hduser@master:/home/hduser/hadoop$ jps
+16017 Jps
+14799 NameNode
+15686 TaskTracker
+14880 DataNode
+15596 JobTracker
+14977 SecondaryNameNode
+3269 QuorumPeerMain
+
+hduser@slave1:/home/hduser/hadoop$ jps
+15183 DataNode
+15897 TaskTracker
+16284 Jps
+1878 QuorumPeerMain
+
+hduser@slave2:/home/hduser/hadoop$ jps
+15225 DataNode
+15985 Jps
+15897 TaskTracker
+1258 QuorumPeerMain
+</pre>
+</section>
+<p class="inner_anchor"><a href="#zookeepertop">Top</a></p>
+</article>
+
+<article id="hbase">
+<h2 id="hbasetop">Setting up a fully-distributed HBase</h2>
+<section id="hbase1">
+<h3>1. Download and Install HBase</h3>
+<span class="inner_anchor">Jump to: <a href="#hbase2">2</a> <a href="#hbase3">3</a> <a href="#hbase4">4</a></span>
+<p>Download from <a href="http://www.apache.org/dyn/closer.cgi/hbase/">Apache Mirror</a> and unpack it to a location, in this example we'll use <code>/home/hduser/hbase</code>:</p>
+<pre># change to your Downloads directory
+$ cd /home/hduser/Downloads
+
+# extract the files
+$ tar xzf hbase-[versionnumber].tar.gz
+
+# move the folder to the appropriate directory
+$ mv hbase-[versionnumber] /home/hduser/hbase
+
+# change owner of files
+$ cd /home/hduser
+$ sudo chown -R hduser:hadoop hbase </pre>
+<p class="tips">More info on <a href="http://linux.die.net/man/1/chown"><code>chown</code></a></p>
+<p class="caution">This step has to be repeated on all servers</p>
+<p class="tips">An alternative to proceeding with the following steps on each and every server is to complete the steps on a single server, then copy the hbase folder to the other servers via <a href="http://linux.die.net/man/1/rcp"><code>rcp</code></a> or <a href="http://linux.die.net/man/1/rsync"><code>rsync</code></a></p>
+</section>
+<section id="hbase2">
+<span class="inner_anchor">Jump to: <a href="#hbase1">1</a> <a href="#hbase3">3</a> <a href="#hbase4">4</a></span>
+<h3>2. System Setup</h3>
+<p>Configure <code>$HOME/.bashrc</code></p>
+<pre>$ nano $HOME/.bashrc</pre>
+<p class="tips"><a href="https://help.ubuntu.com/community/Nano">Nano</a> is a simple CLI editor. You can use any text editor you like, e.g. vi, vim, emacs, gedit, by replacing nano with the appropriate program name.</p>
+<p>Append the following lines, or update if similar exists to the end of the file</p>
+<pre>export HBASE_HOME=/home/hduser/hbase
+export PATH=$PATH:$HADOOP_HOME/bin:$ZK_HOME/bin:$HBASE_HOME/bin
+</pre>
+<p>If you followed the previous section on Setting up Hadoop, your file will look like this</p>
+<pre>export JAVA_HOME=/usr/lib/jvm/java-6-openjdk
+export HADOOP_HOME=/home/hduser/hadoop
+export ZK_HOME=/home/hduser/zookeeper
+export HBASE_HOME=/home/hduser/hbase
+export PATH=$PATH:$HADOOP_HOME/bin:$ZK_HOME/bin:$HBASE_HOME/bin
+</pre>
+<p class="tips">More info on <a href="http://www.joshstaiger.org/archives/2005/07/bash_profile_vs.html"><code>.bashrc</code></a> and <a href="http://ss64.com/bash/export.html"><code>export</code></a></p>
+<p class="caution">This step has to be repeated on all servers</p>
+</section>
+<section id="hbase3">
+<span class="inner_anchor">Jump to: <a href="#hbase1">1</a> <a href="#hbase2">2</a> <a href="#hbase4">4</a></span>
+<h3>3. Configuration</h3>
+<p>You have to edit 3 configuration files on ALL MACHINES.</p>
+<p>First, edit the <code>hbase-env.sh</code> file in the <code>conf</code> directory of HBase:</p>
+<pre>$ nano hbase-env.sh</pre>
+<p>Scroll to the bottom of the file, edit the last line of the file such that it now says:</p>
+<pre>export HBASE_MANAGES_ZK=false</pre>
+<p>Next, the <code>hbase-site.xml</code> file. Add the following lines:</p>
+<pre>
+&lt;!-- In: conf/hbase-site.xml --&gt;
+&lt;configuration&gt;
+  &lt;property&gt;
+    &lt;name&gt;hbase.rootdir&lt;/name&gt;
+    &lt;value&gt;hdfs://master:54310/hbase&lt;/value&gt;
+    &lt;description&gt;The directory shared by region servers and into which HBase persists. The URL should be 'fully-qualified' to include the filesystem scheme. For example, to specify the HDFS directory '/hbase' where the HDFS instance's namenode is running at namenode.example.org on port 9000, set this value to: hdfs://namenode.example.org:9000/hbase. By default HBase writes into /tmp. Change this configuration else all data will be lost on machine restart.&lt;/description&gt;
+  &lt;/property&gt;
+  &lt;property&gt;
+    &lt;name&gt;hbase.cluster.distributed&lt;/name&gt;
+    &lt;value&gt;true&lt;/value&gt;
+    &lt;description&gt;The mode the cluster will be in. Possible values are false for standalone mode and true for distributed mode. If false, startup will run all HBase and ZooKeeper daemons together in the one JVM.&lt;/description&gt;
+  &lt;/property&gt;
+  &lt;property&gt;
+    &lt;name&gt;hbase.zookeeper.quorum&lt;/name&gt;
+    &lt;value&gt;master,slave1,slave2&lt;/value&gt;
+    &lt;description&gt;Comma separated list of servers in the ZooKeeper Quorum. For example, "host1.mydomain.com,host2.mydomain.com,host3.mydomain.com". By default this is set to localhost for local and pseudo-distributed modes of operation. For a fully-distributed setup, this should be set to a full list of ZooKeeper quorum servers. If HBASE_MANAGES_ZK is set in hbase-env.sh this is the list of servers which we will start/stop ZooKeeper on.&lt;/description&gt;
+  &lt;/property&gt;
+  &lt;property&gt;
+    &lt;name&gt;hbase.zookeeper.property.clientPort&lt;/name&gt;
+    &lt;value&gt;2181&lt;/value&gt;
+    &lt;description&gt;Property from ZooKeeper's config zoo.cfg. The port at which the clients will connect.&lt;/description&gt;
+  &lt;/property&gt;
+  &lt;property&gt;
+    &lt;name&gt;hbase.zookeeper.property.dataDir&lt;/name&gt;
+    &lt;value&gt;/home/hduser/zookeeper/dataDir&lt;/value&gt;
+    &lt;description&gt;Property from ZooKeeper's config zoo.cfg. The directory where the snapshot is stored.&lt;/description&gt;
+  &lt;/property&gt;
+&lt;/configuration&gt;
+</pre>
+<p class="tips">You'll notice that some properties in <code>hbase-site.xml</code> are similar to the ones defined in <code>zoo.cfg</code>. According to documentation, HBase will prefer the configuration found in zoo.cfg over any settings in hbase-site.xml, as long as <code>zoo.cfg</code>is in HBase's <code>CLASSPATH</code>. So if you copy <code>zoo.cfg</code> to the <code>conf</code> directory of HBase, those properties should not be needed, but to be safe, just leave them inside, but make sure that the settings match.</p>
+<p>Lastly, the <code>regionservers</code> file in the <code>conf</code> directory. If that file does not exist, create it. This file lists all the hosts to you would like RegionServers to be running on, one host per line:</p>
+<pre>slave1
+slave2
+</pre>
+<p>You also have to make sure HBase knows your HDFS configuration, the easiest way to do it is to create a soft symbolic link to Hadoop's <code>hdfs-site.xml</code> in HBase's <code>conf</code> directory.</p>
+<pre>$ cd /home/hduser/hbase/conf
+$ ln -s ../../hadoop/conf/hdfs-site.xml</pre>
+
+<p class="tips">More information on <a href="http://linux.die.net/man/1/ln"><code>ln</code></a></p>
+</section>
+<section id="hbase4">
+<span class="inner_anchor">Jump to: <a href="#hbase1">1</a> <a href="#hbase2">2</a> <a href="#hbase3">3</a></span>
+<h3>4. First-run</h3>
+<p>Ensure that you HDFS is running first, MapReduce is not required to be running at this stage, but if it is, leave it.</p>
+<pre>$ start-hdfs.sh</pre>
+<p>Since we have told HBase not to manage its ZooKeeper, we'll have to start it manually. If you didn't not follow the previous section on Setting up ZooKeeper try:</p>
+<pre>$ hbase-daemons.sh start zookeeper
+# check the status of each machine by running the following
+$ zkServer.sh status
+</pre>
+<p>If the above command doesn't start the ZooKeeper instances, we'll have to start it manually on each machine. Run on each machine the following command:</p>
+<pre>$ zkServer.sh Start
+# examine the status by running
+$ zkServer.sh status
+# Each machine will either be a follower or a leader
+</pre>
+<p>Once the ZooKeeper instances are up in the machines specified in your <code>zoo.cfg</code> file (which is the same as the <code>hbase.zookeeper.quorum</code> property), you can start HBase:</p>
+<pre>$ start-hbase.sh</pre>
+<p>This will bring up RegionMaster on the machine with NameNode running RegionServers on the machines with DataNodes running</p>
+<p>Examine the success/failure of this command in the <code>/home/hduser/hbase/logs</code> folder.</p>
+<p class="tips">Examine the <code>logs</code> folder on <code>master</code> to troubleshoot the starting of HMaster. Examine the <code>logs</code> on each slave to debug the its respective HRegionServer.</p>
+<p>Use <code>jps</code> to look at the Java processes running, it should be something like this:</p>
+<pre>hduser@master:/home/hduser/hadoop$ jps
+16017 Jps
+14799 NameNode
+15686 TaskTracker
+14880 DataNode
+15596 JobTracker
+14977 SecondaryNameNode
+3269 QuorumPeerMain
+6238 HMaster
+
+
+hduser@slave1:/home/hduser/hadoop$ jps
+15183 DataNode
+15897 TaskTracker
+16284 Jps
+1879 QuorumPeerMain
+2001 HRegionServer
+
+hduser@slave2:/home/hduser/hadoop$ jps
+15225 DataNode
+15985 Jps
+15897 TaskTracker
+1258 QuorumPeerMain
+2158 HRegionServer
+</pre>
+<p>HBase has web interfaces at the following URL to check/track the various processes:</p>
+<pre>http://master:60000/ &dash; web UI listing vital atttributes</pre>
+<p>Run some simple Shell exercises to test that your HBase is set up correctly:</p>
+<pre>$ hbase shell
+# this will allow you to connect to hbase via the shell
+# you will see a prompt on the same window as such
+hbase(main):001:></pre>
+<p class="tips">Type help and then &lt;RETURN&gt; to see a listing of shell commands and options.</p>
+<p>We will create a test table called <code>'test'</code> with a single column family named <code>'cf'</code>. We then enter 3 different values, in 3 different rows, under 3 different columns.</p>
+<pre>hbase(main):003:0> create 'test', 'cf'
+0 row(s) in 1.2200 seconds
+hbase(main):003:0> list 'test'
+..
+1 row(s) in 0.0550 seconds
+hbase(main):004:0> put 'test', 'row1', 'cf:a', 'value1'
+0 row(s) in 0.0560 seconds
+hbase(main):005:0> put 'test', 'row2', 'cf:b', 'value2'
+0 row(s) in 0.0370 seconds
+hbase(main):006:0> put 'test', 'row3', 'cf:c', 'value3'
+0 row(s) in 0.0450 seconds
+</pre>
+<p>This enters first value <code>'value1'</code> at the row <code>'row1'</code>, at column <code>'a'</code> under column family <code>'cf'</code>; the value <code>'value2'</code> at the row <code>'row2'</code>, at column <code>'b'</code> under column family <code>'cf'</code>; the value <code>'value3'</code> at the row <code>'row3'</code>, at column <code>'c'</code> under column family <code>'cf'</code>.</p>
+<p>Columns in HBase are comprised of a column family prefix &dash; cf in this example &dash; followed by a colon and then a column qualifier suffix.</p>
+<p>We then run a scan on the table to verify that the values have been inserted properly</p>
+<pre>hbase(main):007:0> scan 'test'
+ROW        COLUMN+CELL
+row1       column=cf:a, timestamp=1288380727188, value=value1
+row2       column=cf:b, timestamp=1288380738440, value=value2
+row3       column=cf:c, timestamp=1288380747365, value=value3
+3 row(s) in 0.0590 seconds
+</pre>
+<p>We can also retrieve a single row as such:</p>
+<pre>hbase(main):008:0> get 'test', 'row1'
+COLUMN      CELL
+cf:a        timestamp=1288380727188, value=value1
+1 row(s) in 0.0400 seconds
+</pre>
+<p>Since our HBase is runs on HDFS, we can browse the tables on HDFS's web UI:</p>
+<pre># On your browser go to
+http://master:50070
+# look for the "Brow the filesystem" link
+# you will see a listing for folders which is simlar to the below
+hbase	dir	2012-05-12 03:04	rwxr-xr-x	hduser	supergroup
+tmp	dir	2012-05-12 01:42	rwxr-xr-x	hduser	supergroup
+user	dir	2012-05-12 01:35	rwxr-xr-x	hduser	supergroup
+# click on the hbase link to access the hbase directory
+# you should be able to see your a directory named after your table, 'test'
+-ROOT-	dir	2012-05-10 05:06	rwxr-xr-x	hduser	supergroup
+-META-	dir	2012-05-12 01:41	rwxr-xr-x	hduser	supergroup
+.logs	dir	2012-05-12 08:12	rwxr-xr-x	hduser	supergroup
+test	dir	2012-05-12 00:29	rwxr-xr-x	hduser	supergroup
+</pre>
+<p>This will confirm that your setup of HBase on HDFS is successful. We will keep the table because we want to use it to test our MapReduce set-up, but if you want try removing the table, you can now disable and drop your test table this way:</p>
+<pre>hbase(main):012:0> disable 'test'
+0 row(s) in 1.0930 seconds
+hbase(main):013:0> drop 'test'
+0 row(s) in 0.0770 seconds 
+</pre>
+<p>And finally exit the HBase shell:</p>
+<pre>hbase(main):014:0> exit</pre>
+</section>
+<p class="inner_anchor"><a href="#hbasetop">Top</a></p>
+</article>
+
+<article id="mrhbase">
+<h2 id="mrhbasetop">MapReduce on HBase</h2>
+<section id="mrhbase1">
+<h3>1. Configuration</h3>
+<p>By default MapReduce does not have access to the HBase jars, so we either have to copy the HBase jars to Hadoop's <code>lib</code> folder, or we can edit the <code>CLASSPATH</code> of Hadoop, which is demonstrated below:</p>
+<pre># open the hadoop script file
+$ gedit /home/hduser/hadoop/bin/hadoop
+# look for the comment saying "add user-specified CLASSPATH last"
+# add the following line above the if statement
+HADOOP_CLASSPATH=`${HBASE_HOME}/bin/hbase classpath`
+</pre>
+<p class="tips">The back ticks ` will tell the script to execute the expression inside. In this case <code>${HBASE_HOME}/bin/hbase classpath</code> resolves to a representation of the entire classpath of HBase. We then add the representation to the variable <code>HADOOP_CLASSPATH</code>. Subsequently, this value will be added to Hadoop's classpath, meaning that Hadoop will look at these directories for jar files.</p>
+<p>Finally the portion of the code that you edited should look like this:</p>
+<pre># add user-specified CLASSPTH last
+HADOOP_CLASSPATH=`${HBASE_HOME}/bin/hbase classpath`
+if [ "$HADOOP_USER_CLASSPATH_FIRST" = "" ] && [ "$HADOOP_CLASSPATH" != "" ]; then
+  CLASSPATH=${CLASSPATH}:${HADOOP_CLASSPATH}
+fi
+</pre>
+<p>This method is easy to implement, but will pollute your Hadoop installation. Another method is as such, to run the sample HBase RowCounter MapReduce job:</p>
+<pre>$ HADOOP_CLASSPATH=`${HBASE_HOME}/bin/hbase classpath` ${HADOOP_HOME}/bin/hadoop jar ${HBASE_HOME}/hbase-[version].jar rowcounter usertable</pre>
+<p>This does the same thing, it makes HBase's classpath known to Hadoop. However you have to enter <code>HADOOP_CLASSPATH=`${HBASE_HOME}/bin/hbase classpath`</code> everytime you wish to run a MapReduce job on HBase. Which is why I prefer the first method.</p>
+<p class="tips">More info on <a href="http://hbase.apache.org/apidocs/org/apache/hadoop/hbase/mapreduce/package-summary.html#classpath">official HBase API</a></p>
+</section>
+<section id="mrhbase2">
+<h3>2. First-run</h3>
+<p>We shall test that our we can run MapReduce jobs on our HBase setup now. The test is a <code>rowcounter</code> test that counts the number of rows in a table. Run it in this matter:</p>
+<pre>$ cd /home/hduser/hbase
+hadoop jar hbase-[version].jar rowcounter test
+# there will be a very verbose output of INFO but look out for this line
+org.apache.hadoop.hbase.mapreduce.RowCounter$RowCounterMapper$Counters
+ROWS=3</pre>
+<p>Or if you did not modify the <code>hadoop</code> file:</p>
+hadoop jar hbase-[version].jar rowcounter test
+<pre>$ cd /home/hduser/hbase
+# there will be a very verbose output of INFO but look out for this line
+org.apache.hadoop.hbase.mapreduce.RowCounter$RowCounterMapper$Counters
+ROWS=3</pre>
+<p>As you can see our <code>test</code> table has 3 rows. Which is correct.</p>
+</section>
+<p class="inner_anchor"><a href="#mrhbasetop">Top</a></p>
+</article>
+
+<article id="ref">
+<h2 id="reftop">Reference</h2>
+<section id="ref1">
+<h3>Hadoop Reference</h3>
+<p><a href="http://hadoop.apache.org/">Hadoop Homepage</a></p>
+<p><a href="http://www.apache.org/dyn/closer.cgi/hadoop/common/">Hadoop Releases Download Page</a></p>
+<p><a href="http://wiki.apache.org/hadoop/">Official Wiki for Hadoop</a></p>
+<p><a href="http://hadoop.apache.org/common/docs/r1.0.2/">Hadoop Documentation Landing Page (r1.0.2)</a></p>
+<p><a href="http://hadoop.apache.org/common/docs/r1.0.2/api/index.html">Hadoop 1.0.2 API</a></p>
+<p class="tips">Make sure you look at your Hadoop version number and read the documentation and API for the appropriate version</p>
+<p class="tips">Going through the MapReduce tutorial will ease your entry into MapReduce on HBase. You can still try MapReduce on HDFS even when HBase is set up, by following the link above.</p>
+<h4>Quickstarts</h4>
+<p><a href="http://hadoop.apache.org/common/docs/r1.0.2/single_node_setup.html">Hadoop Single Node Setup Quickstart Guide</a></p>
+<p><a href="http://hadoop.apache.org/common/docs/r1.0.2/cluster_setup.html">Hadoop Cluster Setup Quickstart Guide</a></p>
+<h4>Tutorials</h4>
+<p><a href="http://hadoop.apache.org/common/docs/r1.0.2/mapred_tutorial.html">Basic MapReduce Tutorial</a></p>
+<p><a href="http://developer.yahoo.com/hadoop/tutorial/">Yahoo! Hadoop Tutorial</a></p>
+<p><a href="http://www.michael-noll.com/tutorials/running-hadoop-on-ubuntu-linux-single-node-cluster/">Running Hadoop On Ubuntu Linux (Single-Node Cluster)</a></p>
+<p><a href="http://www.michael-noll.com/tutorials/running-hadoop-on-ubuntu-linux-multi-node-cluster/">Running Hadoop On Ubuntu Linux (Multi-Node Cluster)</a></p>
+<p><a href="http://ankitasblogger.blogspot.com/2011/01/hadoop-cluster-setup.html">Ankit Jain's blog: Installation of hadoop in the cluster - A complete step by step tutorial</a></p>
+<h4>In-depth</h4>
+<p><a href="http://hadoop.apache.org/common/docs/r1.0.2/hdfs_design.html">HDFS Architecture</a></p>
+<h4>Book</h4>
+<p><a href="http://hadoopbook.com/">Hadoop: The Definitive Guide</a></p>
+</section>
+<section id="ref2">
+<h3>ZooKeeper Reference</h3>
+<p><a href="http://zookeeper.apache.org/">ZooKeeper Homepage</a></p>
+<p><a href="http://www.apache.org/dyn/closer.cgi/zookeeper/">ZooKeeper Releases Download Page</a></p>
+<p><a href="https://cwiki.apache.org/confluence/display/ZOOKEEPER/Index">ZooKeeper Wiki Page</a></p>
+<p><a href="http://zookeeper.apache.org/doc/trunk/">ZooKeeper 3.4 Documentation Landing Page</a></p>
+<p><a href="http://zookeeper.apache.org/doc/r3.4.3/api/index.html">ZooKeeper 3.4.3 API</a></p>
+<p><a href="http://zookeeper.apache.org/doc/trunk/zookeeperOver.html">ZooKeeper Overview</a></p>
+<h4>Quickstart</h4>
+<p><a href="http://zookeeper.apache.org/doc/trunk/zookeeperStarted.html#ch_GettingStarted">ZooKeeper Standalone QuickStart</a></p>
+<p><a href="http://zookeeper.apache.org/doc/trunk/zookeeperStarted.html#sc_RunningReplicatedZooKeeper">ZooKeeper Replicated Quickstart</a></p>
+</section>
+<section id="ref3">
+<h3>HBase Reference</h3>
+<p><a href="http://hbase.apache.org/">HBase Homepage</a></p>
+<p><a href="http://www.apache.org/dyn/closer.cgi/hbase/">HBase Releases Download Page</a></p>
+<p><a href="http://hbase.apache.org/apidocs/index.html">HBase 0.93-SNAPSHOT API</a></p>
+<p><a href="http://hbase.apache.org/xref/index.html">HBase 0.95-SNAPSHOT Reference (Source Code)</a></p>
+<p><a href="http://hbase.apache.org/apidocs/org/apache/hadoop/hbase/mapreduce/package-summary.html">API specifically for MapReduce on HBase</a></p>
+<h4>Quickstart</h4>
+<p><a href="http://hbase.apache.org/book/quickstart.html">HBase Single Node Quickstart</a></p>
+<p><a href="http://hbase.apache.org/book/standalone_dist.html#distributed">HBase Distributed Quickstart</a></p>
+<h4>Tutorial</h4>
+<p><a href="http://openwires.blogspot.com/p/hbase-setup.html">HBase Pseudo-Distributed Guide</a></p>
+<p><a href="http://openwires.blogspot.com/p/hbase-multiple-node-setup-guide.html">HBase Distributed Setup Guide</a></p>
+<p><a href="http://blog.ibd.com/howto/hbase-hadoop-on-mac-ox-x/">HBase/Hadoop on Mac OS X</a></p>
+<p><a href="http://whyjava.wordpress.com/2011/12/08/installing-hbase-over-hdfs-on-a-single-ubuntu-box/">Shekhar Gulati:Installing HBase over HDFS on a Single Ubuntu Box</a></p>
+<h4>Example Code</h4>
+<p><a href="http://hbase.apache.org/apidocs/org/apache/hadoop/hbase/client/package-summary.html">Example code for hooking up Java Client to HBase</a></p>
+<p><a href="http://stackoverflow.com/questions/8750764/what-is-the-fastest-way-to-bulk-load-data-into-hbase-programmatically">example code for HFileOutputFormat</a></p>
+<h4>In-depth</h4>
+<p><a href="http://hbase.apache.org/acid-semantics.html">HBase Acid Semantics</a></p>
+<p><a href="http://hbase.apache.org/bulk-loads.html">HBase Bulk Loading</a></p>
+<p><a href="http://th30z.blogspot.com/2011/02/hbase-io-hfile.html?spref=tw">HFile Structure</a></p>
+<h4>Book</h4>
+<p><a href="http://www.hbasebook.com/">HBase: The Definitive Guide</a></p>
+</section>
+</article>
+
+</section>
+
+
+</body>
+</html>
